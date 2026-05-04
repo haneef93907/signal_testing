@@ -63,6 +63,11 @@ DEFAULT_ALERT_EMAIL_FROM = "haneef93907@gmail.com"
 DEFAULT_ALERT_EMAIL_TO = "haneef93907@gmail.com"
 
 
+# ---------------------------- Errors ----------------------------
+class RestrictedLocationError(Exception):
+    """Raised when Binance blocks requests from the current server region."""
+
+
 # ---------------------------- Data Models ----------------------------
 @dataclass
 class Signal:
@@ -100,12 +105,19 @@ class BinanceSignalScanner:
         self.request_sleep_seconds = max(0.0, request_sleep_seconds)
         self.btc_regime = "Neutral"
 
+    @staticmethod
+    def _is_restricted_location_error(exc: Exception) -> bool:
+        msg = str(exc).lower()
+        return "restricted location" in msg or "(451" in msg
+
     def _safe_request(self, fn, *args, **kwargs):
         """Simple retry wrapper for transient API issues / rate-limit spikes."""
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 return fn(*args, **kwargs)
             except Exception as exc:
+                if self._is_restricted_location_error(exc):
+                    raise RestrictedLocationError(str(exc)) from exc
                 if attempt == MAX_RETRIES:
                     raise
                 logging.warning("Request failed (%s/%s): %s", attempt, MAX_RETRIES, exc)
@@ -537,7 +549,16 @@ def send_email_alerts(
 # ---------------------------- Runtime ----------------------------
 def run_once(scanner: BinanceSignalScanner, email: bool) -> None:
     start = time.time()
-    signals = scanner.scan()
+    try:
+        signals = scanner.scan()
+    except RestrictedLocationError as exc:
+        logging.error(
+            "Binance blocked this server location (HTTP 451). "
+            "Deploy in a Binance-allowed region or use another exchange endpoint. Details: %s",
+            exc,
+        )
+        return
+
     print_signals(signals)
 
     if email:
