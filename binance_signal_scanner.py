@@ -475,12 +475,32 @@ def print_signals(signals: List[Signal]) -> None:
 
 
 def build_alert_message(signals: List[Signal], max_items: int = 20) -> str:
-    lines = [f"Binance Signal Scanner Alerts (Score >= {MIN_SCORE})"]
+    lines = [f"Binance Signal Scanner Alerts (Score >= {MIN_SCORE})", ""]
     for s in signals[:max_items]:
+        touches_label = "2+ touches" if s.resistance_touches >= 2 else "1 touch"
+        volume_24h_m = s.volume_24h_usdt / 1_000_000
         lines.append(
-            f"{s.symbol} | {s.price:.6f} | Score {s.score} | {s.trend} | "
-            f"Vol {s.volume_strength} | Mom {s.momentum_strength} | "
-            f"RSI {s.rsi:.2f} | RR {s.rr:.2f} | Profit {s.profit_pct:.2f}%"
+            f"Coin:               {s.symbol}\n"
+            f"Current Price:      {s.price:.6f}\n"
+            f"Buy Price:          {s.buy_price:.6f}\n"
+            f"Expected Sell:      {s.expected_sell:.6f} ({touches_label})\n"
+            f"Stop-Loss:          {s.stop_loss:.6f}\n"
+            f"Expected Profit:    {s.profit_pct:.2f}%\n"
+            f"Risk/Reward Ratio:  {s.rr:.2f}:1\n"
+            f"Probability:        {s.probability}%\n"
+            f"Est. Hold Time:     {s.hold_time_text}\n"
+            f"WR Status:          {s.wr_status} (W%R={s.williams_r:.0f})\n"
+            f"RSI-14:             {s.rsi:.1f}\n"
+            f"24h Trend:          {s.trend_24h}\n"
+            f"7d Trend:           {s.trend_7d}\n"
+            f"BTC Regime:         {s.btc_regime}\n"
+            f"Support:            {s.support:.6f}\n"
+            f"24h Volume:         {volume_24h_m:.2f}M USDT\n"
+            f"Volume:             {s.volume_strength.capitalize()}\n"
+            f"Momentum:           {s.momentum_strength.capitalize()}\n"
+            f"Risk Level:         {s.risk_level}\n"
+            f"Final Verdict:      {s.final_verdict}\n"
+            f"{'-' * 55}"
         )
     return "\n".join(lines)
 
